@@ -43,8 +43,7 @@ Una aplicación web progresiva (PWA) diseñada para digitalizar, organizar y pre
 
 **1. Clonar repositorio:**
 ```bash
-git clone [https://github.com/dev-manuelp/recetario-mama.git](https://github.com/dev-manuelp/recetario-mama.git)
-cd recetario-mama
+git clone https://github.com/dev-manuelp/recetario-mama.git
 ```
 
 **2. Instalar dependencias:**
