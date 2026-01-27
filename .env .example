@@ -1,0 +1,11 @@
+# URL de conexión a Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+
+# Clave anónima pública de Supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Clave de Google para la IA (Gemini)
+GOOGLE_API_KEY=
+
+# Contraseña para entrar en la web (Cookie)
+FAMILY_PASSWORD=
