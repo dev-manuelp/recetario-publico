@@ -35,7 +35,7 @@ Una aplicación web progresiva (PWA) diseñada para digitalizar, organizar y pre
 - **Frontend:** Next.js 14 (App Router), React Server Components.
 - **Estilos:** Tailwind CSS, Lucide React, Shadcn/UI (modificado).
 - **Backend:** Supabase (PostgreSQL + Storage + Auth).
-- **IA:** Google Generative AI SDK (Gemini 1.5 Flash).
+- **IA:** Google Generative AI SDK (Gemini flash latest).
 - **APIs Web:** Screen Wake Lock API, Web Share API, Touch Events.
 - **Librerías:** `browser-image-compression`, `react-easy-crop`, `jspdf`.
 
