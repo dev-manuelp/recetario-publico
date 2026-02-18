@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Printer, Loader2, ChefHat, X, Plus, FolderPlus,
-  ArrowLeft, Trash2, CheckCircle2, Search
+  ArrowLeft, Trash2, CheckCircle2, Search, FolderInput,
+  Clock, Library 
 } from "lucide-react";
 import Link from 'next/link';
 
@@ -13,7 +14,8 @@ import {
   getRecipesAction,
   deleteRecipeAction,
   getAlbumsAction,
-  deleteAlbumAction
+  deleteAlbumAction,
+  moveRecipeAction 
 } from '@/app/actions/gallery-actions';
 import { createAlbumAction } from '@/app/actions/album-actions';
 
@@ -28,19 +30,28 @@ import EditAlbumDialog from '@/components/EditAlbumDialog';
 interface Album { id: number; nombre: string; icono: string; }
 interface Recipe { id: number; titulo: string; foto_url: string | null; fuente: string; album_id: number | null; ingredientes?: string[]; }
 
+// Tipo de estado ampliado para incluir 'RECENT'
+type AlbumFilter = number | 'ALL' | 'RECENT';
+
 export default function HomePage() {
   // --- ESTADOS DE DATOS ---
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
-  const [selectedAlbumId, setSelectedAlbumId] = useState<number | 'ALL'>('ALL');
+  
+  // Por defecto entramos en 'RECENT'
+  const [selectedAlbumId, setSelectedAlbumId] = useState<AlbumFilter>('RECENT');
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // --- ESTADOS DE ELIMINACIÓN ---
+  // --- ESTADOS DE ELIMINACIÓN Y MOVIMIENTO ---
   const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
   const [albumToDelete, setAlbumToDelete] = useState<Album | null>(null);
+  const [recipeToMove, setRecipeToMove] = useState<Recipe | null>(null);
+  
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
   const [recipesInAlbumCount, setRecipesInAlbumCount] = useState(0);
 
   // --- ESTADOS DE UI Y FEEDBACK ---
@@ -57,18 +68,16 @@ export default function HomePage() {
 
   const router = useRouter();
 
-  // Carga inicial de datos (Recipes y Albums)
+  // Carga inicial de datos
   useEffect(() => { loadData(); }, []);
 
   /**
-   * Lógica de filtrado de recetas por álbum y buscador global
+   * Lógica de filtrado de recetas INTELIGENTE
    */
   useEffect(() => {
     let result = [...allRecipes];
-    if (selectedAlbumId !== 'ALL') {
-      result = result.filter(r => r.album_id === selectedAlbumId);
-      result.sort((a, b) => a.titulo.localeCompare(b.titulo));
-    }
+
+    // 1. Si hay búsqueda, ignoramos los filtros de álbum/recientes
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       result = result.filter(r =>
@@ -76,8 +85,20 @@ export default function HomePage() {
         r.ingredientes?.some((ing: string) => ing.toLowerCase().includes(term))
       );
     } else {
-      if (selectedAlbumId === 'ALL') {
-        result = result.slice(0, 5); // Limita recientes en Home
+      // 2. Lógica de selección de Álbum
+      if (selectedAlbumId === 'RECENT') {
+        // RECIENTES: Top 10 (Fecha Descendente)
+        result = result.slice(0, 10);
+      } 
+      else if (selectedAlbumId === 'ALL') {
+        // TODO: Todas las recetas.
+        
+      } 
+      else {
+        // ÁLBUM ESPECÍFICO (Postres, Carnes...): 
+        //orden alfabéticamente para buscar fácil.
+        result = result.filter(r => r.album_id === selectedAlbumId);
+        result.sort((a, b) => a.titulo.localeCompare(b.titulo));
       }
     }
     setFilteredRecipes(result);
@@ -102,9 +123,6 @@ export default function HomePage() {
     setLoading(false);
   }
 
-  /**
-   * Trigger de feedback visual y háptico (vibración)
-   */
   const triggerSuccess = (msg: string) => {
     setSuccessMessage(msg);
     setShowSuccessAlert(true);
@@ -112,7 +130,6 @@ export default function HomePage() {
     setTimeout(() => setShowSuccessAlert(false), 3000);
   };
 
-  // Función para actualizar visualmente el álbum al instante
   const handleAlbumUpdate = (id: number, nombre: string, icono: string) => {
     setAlbums(prevAlbums =>
       prevAlbums.map(album =>
@@ -120,9 +137,7 @@ export default function HomePage() {
       )
     );
   };
-  /**
-   * Ejecución de borrado definitivo de receta
-   */
+
   async function confirmDeleteRecipe() {
     if (!recipeToDelete) return;
     setIsDeleting(true);
@@ -135,9 +150,23 @@ export default function HomePage() {
     setIsDeleting(false);
   }
 
-  /**
-   * Ejecución de borrado de álbum y sus recetas vinculadas
-   */
+  async function handleMoveRecipe(targetAlbumId: number) {
+    if (!recipeToMove) return;
+    setIsMoving(true);
+    const result = await moveRecipeAction(recipeToMove.id, targetAlbumId);
+    if (result.success) {
+      setAllRecipes(prevRecipes => 
+        prevRecipes.map(r => 
+          r.id === recipeToMove.id ? { ...r, album_id: targetAlbumId } : r
+        )
+      );
+      triggerSuccess("Receta movida con éxito");
+      setRecipeToMove(null);
+      setIsEditMode(false);
+    }
+    setIsMoving(false);
+  }
+
   async function confirmDeleteAlbum() {
     if (!albumToDelete) return;
     setIsDeleting(true);
@@ -152,9 +181,6 @@ export default function HomePage() {
     setIsDeleting(false);
   }
 
-  /**
-   * Creación de nuevo contenedor (Álbum)
-   */
   async function handleCreateAlbum() {
     if (!newAlbumName.trim()) return;
     setCreatingAlbum(true);
@@ -167,18 +193,12 @@ export default function HomePage() {
     setCreatingAlbum(false);
   }
 
-  /**
-   * Pre-confirmación de borrado de álbum (Cálculo de recetas afectadas)
-   */
   const handleRequestDeleteAlbum = (album: Album) => {
     const count = allRecipes.filter(r => r.album_id === album.id).length;
     setRecipesInAlbumCount(count);
     setAlbumToDelete(album);
   };
 
-  /**
-   * Lógica de pulsación larga para activar Modo Edición
-   */
   const handleTouchStart = () => {
     if (longPressTimer) clearTimeout(longPressTimer);
     const timer = setTimeout(() => {
@@ -202,10 +222,17 @@ export default function HomePage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#FBF7F4] px-4 pt-1 pb-28 max-w-5xl mx-auto" onClick={() => setIsEditMode(false)}>
+  // Función para obtener el título dinámico
+  const getPageTitle = () => {
+    if (searchTerm) return "Resultados de búsqueda";
+    if (selectedAlbumId === 'RECENT') return "Últimas Recetas";
+    if (selectedAlbumId === 'ALL') return "Todas las Recetas";
+    return albums.find(a => a.id === selectedAlbumId)?.nombre || "Recetas";
+  }
 
-      {/* Alerta flotante de operación exitosa */}
+  return (
+    <div className="min-h-screen bg-[#FBF7F4] px-4 pt-1 pb-28 w-full max-w-[1600px] mx-auto" onClick={() => setIsEditMode(false)}>
+
       {showSuccessAlert && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top duration-300">
           <div className="bg-stone-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-stone-600">
@@ -215,7 +242,45 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Modal de confirmación de borrado (Receta o Álbum) */}
+      {/* MODAL MOVER */}
+      {recipeToMove && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="bg-blue-100 p-4 rounded-full mb-3 mx-auto w-fit">
+                <FolderInput className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold text-stone-800">Mover Receta</h3>
+              <p className="text-stone-500 text-sm mt-1">¿A qué álbum quieres mover <br/><strong>"{recipeToMove.titulo}"</strong>?</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-[200px] mb-4 pr-1 space-y-2">
+              {albums.map((album) => (
+                <button
+                  key={album.id}
+                  onClick={() => handleMoveRecipe(album.id)}
+                  disabled={isMoving || recipeToMove.album_id === album.id}
+                  className={cn(
+                    "w-full flex items-center gap-4 p-3 rounded-xl border-2 transition-all",
+                    recipeToMove.album_id === album.id 
+                      ? "bg-stone-100 border-stone-200 opacity-50 cursor-not-allowed" 
+                      : "bg-white border-stone-100 hover:border-orange-200 hover:bg-orange-50 active:scale-95"
+                  )}
+                >
+                  <div className="bg-white p-2 rounded-full border border-stone-100 shrink-0">
+                    <RecipeIcon name={album.icono} className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <span className="font-bold text-stone-700">{album.nombre}</span>
+                </button>
+              ))}
+            </div>
+
+            <Button variant="outline" className="h-12 rounded-xl w-full" onClick={() => setRecipeToMove(null)} disabled={isMoving}>Cancelar</Button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL BORRAR */}
       {(recipeToDelete || albumToDelete) && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -247,12 +312,11 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Modal creación de álbum y selector de icono centralizado */}
+      {/* MODAL CREAR ÁLBUM */}
       {showCreateAlbum && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-stone-800 mb-4 text-center tracking-tight">Nuevo Álbum</h3>
-
             <div className="flex gap-4 overflow-x-auto pb-6 pt-2 mb-4 px-2 w-full no-scrollbar justify-start snap-x snap-mandatory">
               {ALBUM_ICONS_LIST.map(iconKey => (
                 <button
@@ -269,7 +333,6 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
-
             <div className="flex items-center gap-3 bg-stone-50 p-3 rounded-xl border border-stone-200 mb-6">
               <RecipeIcon name={newAlbumIcon} className="w-8 h-8 text-orange-600" />
               <Input value={newAlbumName} onChange={e => setNewAlbumName(e.target.value)} placeholder="Nombre del álbum..." className="bg-transparent border-none text-lg font-bold focus-visible:ring-0" autoFocus />
@@ -282,7 +345,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Cabecera visual de la App */}
+      {/* CABECERA */}
       <div className="flex items-center justify-center gap-4 mb-6 mt-4 px-2">
         <div className="bg-orange-100 p-4 rounded-full shadow-sm shrink-0"><ChefHat className="w-10 h-10 text-orange-600" /></div>
         <div className="text-center">
@@ -291,7 +354,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Input de búsqueda global */}
+      {/* SEARCH */}
       <div className="max-w-md mx-auto mb-6 px-2 relative">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-orange-400" />
@@ -314,7 +377,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Sección de navegación por Álbumes */}
+      {/* NAVEGACIÓN ÁLBUMES */}
       <div className="mb-2 max-w-4xl mx-auto px-2">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-stone-800 text-2xl font-sans">Mis Álbumes</h2>
@@ -331,7 +394,21 @@ export default function HomePage() {
         </div>
 
         <div className="flex gap-3 overflow-x-auto pb-4 pt-1 -mx-2 px-2 no-scrollbar snap-x snap-mandatory">
-          {/* Categoría general 'Todo' */}
+          
+          {/* 1. TARJETA: RECIENTES */}
+          <div
+            onClick={() => setSelectedAlbumId('RECENT')}
+            className={cn(
+              "rounded-2xl p-3 shadow-md flex flex-col justify-between h-28 min-w-[110px] cursor-pointer border-2 transition-all relative snap-start shrink-0",
+              selectedAlbumId === 'RECENT' ? "bg-stone-800 text-white border-stone-800" : "bg-white text-stone-600 border-stone-100"
+            )}
+          >
+            <Clock className={cn("w-8 h-8", selectedAlbumId === 'RECENT' ? "text-orange-400" : "text-stone-400")} />
+            <span className="font-bold text-xs uppercase tracking-wider">Recientes</span>
+            <span className={cn("absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full", selectedAlbumId === 'RECENT' ? "bg-stone-700 text-stone-300" : "bg-stone-100 text-stone-400")}>New</span>
+          </div>
+
+          {/* 2. TARJETA: TODO (BIBLIOTECA) */}
           <div
             onClick={() => setSelectedAlbumId('ALL')}
             className={cn(
@@ -339,12 +416,12 @@ export default function HomePage() {
               selectedAlbumId === 'ALL' ? "bg-stone-800 text-white border-stone-800" : "bg-white text-stone-600 border-stone-100"
             )}
           >
-            <RecipeIcon name="all" className={cn("w-8 h-8", selectedAlbumId === 'ALL' ? "text-orange-400" : "text-stone-400")} />
+            <Library className={cn("w-8 h-8", selectedAlbumId === 'ALL' ? "text-orange-400" : "text-stone-400")} />
             <span className="font-bold text-xs uppercase tracking-wider">Todo</span>
             <span className={cn("absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full", selectedAlbumId === 'ALL' ? "bg-stone-700 text-stone-300" : "bg-stone-100 text-stone-400")}>{allRecipes.length}</span>
           </div>
 
-          {/* Listado dinámico de álbumes personalizados */}
+          {/* 3. LISTADO DE ÁLBUMES PERSONALIZADOS */}
           {albums.map(album => {
             const count = allRecipes.filter(r => r.album_id === album.id).length;
             return (
@@ -363,22 +440,16 @@ export default function HomePage() {
                 )}
               >
                 <RecipeIcon name={album.icono} className="w-8 h-8 text-orange-600" />
-
-                {/* --- AQUI ESTA EL CAMBIO: Título + Botón Editar --- */}
                 <div className="flex items-center justify-center w-full relative z-10 gap-1">
                   <span className="font-bold text-stone-700 truncate text-xs uppercase tracking-wider max-w-[80px]">
                     {album.nombre}
                   </span>
                   {!isEditMode && (
                     <div onClick={(e) => e.stopPropagation()}>
-                      <EditAlbumDialog
-                        album={album}
-                        onAlbumUpdated={handleAlbumUpdate} 
-                      />
+                      <EditAlbumDialog album={album} onAlbumUpdated={handleAlbumUpdate} />
                     </div>
                   )}
                 </div>
-
                 <span className={cn("absolute top-2 right-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-colors", selectedAlbumId === album.id ? "bg-orange-200 text-orange-800" : "bg-stone-100 text-stone-400")}>{count}</span>
                 {isEditMode && <button onClick={(e) => { e.stopPropagation(); handleRequestDeleteAlbum(album); }} className="absolute -top-2 -right-2 z-20 bg-stone-700 text-white p-1.5 rounded-full shadow-lg border-2 border-white"><X className="w-3 h-3" /></button>}
               </div>
@@ -387,13 +458,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Listado de Recetas según filtro */}
+      {/* LISTADO RECETAS */}
       <div className="max-w-5xl mx-auto px-2">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-bold text-stone-800 text-2xl font-sans text-left">
-            {selectedAlbumId === 'ALL' ? (searchTerm ? "Resultados" : "Recetas Recientes") : albums.find(a => a.id === selectedAlbumId)?.nombre}
+            {getPageTitle()}
           </h2>
-          {selectedAlbumId !== 'ALL' && (
+          {selectedAlbumId !== 'ALL' && selectedAlbumId !== 'RECENT' && (
             <Link href={`/categoria/${selectedAlbumId}`}>
               <Button variant="outline" size="sm" className="bg-white border-stone-200 text-stone-600 hover:bg-stone-50 rounded-full shadow-sm px-4">
                 <Printer className="w-4 h-4 mr-2 text-orange-500" />
@@ -402,7 +473,9 @@ export default function HomePage() {
             </Link>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-20">
+        
+        {/* GRID ADAPTADO A PANTALLAS GRANDES */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-20">
           {filteredRecipes.map((recipe) => (
             <div key={recipe.id} className={cn("relative transition-all select-none w-full", isEditMode ? "animate-[wiggle_0.3s_ease-in-out_infinite] cursor-pointer" : "active:scale-95")} onMouseDown={handleTouchStart} onMouseUp={handleTouchEnd} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onClick={(e) => { e.stopPropagation(); if (!isEditMode) router.push(`/receta/${recipe.id}`); }}>
               <Card className="overflow-hidden border-0 shadow-md rounded-2xl aspect-[3/4] relative bg-white h-full hover:shadow-xl transition-shadow">
@@ -419,13 +492,18 @@ export default function HomePage() {
                   </div>
                 )}
               </Card>
-              {isEditMode && <button onClick={(e) => { e.stopPropagation(); setRecipeToDelete(recipe); }} className="absolute -top-3 -right-3 z-20 bg-red-500 text-white p-2 rounded-full border-2 border-white shadow-lg"><X className="w-4 h-4" /></button>}
+              
+              {isEditMode && (
+                <>
+                  <button onClick={(e) => { e.stopPropagation(); setRecipeToDelete(recipe); }} className="absolute -top-3 -right-3 z-20 bg-red-500 text-white p-2 rounded-full border-2 border-white shadow-lg active:scale-90 transition-transform"><X className="w-4 h-4" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setRecipeToMove(recipe); }} className="absolute -top-3 -left-3 z-20 bg-blue-500 text-white p-2 rounded-full border-2 border-white shadow-lg active:scale-90 transition-transform"><FolderInput className="w-4 h-4" /></button>
+                </>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Botón flotante para acceso rápido a escaneo de nueva receta */}
       <div className="fixed bottom-8 right-6 z-40">
         <Link href="/nueva">
           <Button className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-orange-600 shadow-2xl border-4 border-[#FBF7F4] hover:scale-110 active:scale-95 transition-transform flex items-center justify-center">

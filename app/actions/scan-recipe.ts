@@ -13,8 +13,10 @@ export interface RecipeData {
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 
 export async function scanRecipeAction(formData: FormData): Promise<RecipeData | null> {
-  console.log("--- INICIO ESCANEO (MODELO FLASH-LATEST) ---");
+  'use server';
 
+  console.log("--- INICIO ESCANEO (MODELO FLASH-LATEST) ---");
+  
   try {
     let files = formData.getAll('images') as File[];
     
@@ -95,7 +97,7 @@ export async function scanRecipeAction(formData: FormData): Promise<RecipeData |
     console.error('ERROR SERVIDOR:', error);
     const msg = error.message?.toLowerCase() || "";
     
-    // Si sigue fallando la API Key, te lo dirá aquí claro
+    // Si sigue fallando la API Key, avisa 
     if (msg.includes("api key")) return { titulo: "", ingredientes: [], pasos: [], error: "Error: Revisa la API Key en Vercel." };
     
     return {

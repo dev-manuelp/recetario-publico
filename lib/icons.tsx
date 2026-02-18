@@ -6,17 +6,16 @@ import {
   Sandwich, Coffee, Soup, Egg, Apple, IceCream, 
   Wine, Cookie, Flame, Croissant, ChefHat, Library, 
   Soup as RiceIcon,
-  // --- NUEVOS IMPORTS ---
-  TreePine,     // Navidad
-  Baby,         // Niños
-  PartyPopper,  // Fiestas
-  BookHeart,    // Abuela (Recetario con amor)
-  Drumstick,    // Pollo
-  Wheat,        // Pan / Masas
-  Candy,        // Dulces
-  Beer,         // Cerveza / Bebida
-  Cherry,       // Fruta
-  Milk          // Lácteos
+  // --- NUEVOS IMPORTS YA EXISTENTES ---
+  TreePine, Baby, PartyPopper, BookHeart, Drumstick, 
+  Wheat, Candy, Beer, Cherry, Milk,
+  // --- AÑADIDOS AHORA (NUEVOS) ---
+  HeartPulse,   // Salud / Dieta
+  Droplets,     // Salsas / Aceites
+  Leaf,         // Vegano / Vegetariano
+  Shrimp,        // Marisco (distinto de pescado)
+  Martini,      // Cócteles / Copas
+  Popcorn       // Snacks / Picoteo
 } from "lucide-react";
 
 /**
@@ -26,24 +25,30 @@ import {
 export const ICON_MAP: Record<string, React.ReactNode> = {
   // --- TEMÁTICOS Y NUEVOS ---
   "navidad":  <TreePine className="w-full h-full" strokeWidth={2.5} />,
-  "abuela":   <BookHeart className="w-full h-full" strokeWidth={2.5} />, // EL ELEGIDO ❤️
+  "abuela":   <BookHeart className="w-full h-full" strokeWidth={2.5} />,
   "niños":    <Baby className="w-full h-full" strokeWidth={2.5} />,
   "fiesta":   <PartyPopper className="w-full h-full" strokeWidth={2.5} />,
+  "salud":    <HeartPulse className="w-full h-full" strokeWidth={2.5} />, 
   
   // --- NUEVOS ALIMENTOS ---
   "pollo":    <Drumstick className="w-full h-full" strokeWidth={2.5} />,
   "pan":      <Wheat className="w-full h-full" strokeWidth={2.5} />,
   "dulces":   <Candy className="w-full h-full" strokeWidth={2.5} />,
   "cerveza":  <Beer className="w-full h-full" strokeWidth={2.5} />,
+  "copas":    <Martini className="w-full h-full" strokeWidth={2.5} />, 
   "fruta":    <Cherry className="w-full h-full" strokeWidth={2.5} />,
   "leche":    <Milk className="w-full h-full" strokeWidth={2.5} />,
+  "salsas":   <Droplets className="w-full h-full" strokeWidth={2.5} />, 
+  "snack":    <Popcorn className="w-full h-full" strokeWidth={2.5} />, 
 
   // --- CLÁSICOS ---
   "utensils": <Utensils className="w-full h-full" strokeWidth={2.5} />,
   "cake":     <Cake className="w-full h-full" strokeWidth={2.5} />,
   "fish":     <Fish className="w-full h-full" strokeWidth={2.5} />,
+  "marisco":  <Shrimp className="w-full h-full" strokeWidth={2.5} />,
   "beef":     <Beef className="w-full h-full" strokeWidth={2.5} />,
   "salad":    <Salad className="w-full h-full" strokeWidth={2.5} />,
+  "veggie":   <Leaf className="w-full h-full" strokeWidth={2.5} />, 
   "pizza":    <Pizza className="w-full h-full" strokeWidth={2.5} />,
   "sandwich": <Sandwich className="w-full h-full" strokeWidth={2.5} />,
   "coffee":   <Coffee className="w-full h-full" strokeWidth={2.5} />,
@@ -64,18 +69,21 @@ export const ICON_MAP: Record<string, React.ReactNode> = {
  * Define el orden en el que salen los iconos al crear un álbum.
  */
 export const ALBUM_ICONS_LIST = [
-  // Favoritos y Temáticos (Primero lo nuevo)
-  "abuela", "navidad", "niños", "fiesta", 
+  // Especiales
+  "abuela", "navidad", "salud", "niños", "fiesta", 
   
   // Platos principales
-  "pollo", "carne", "fish", "verdura", "rice", 
-  "soup", "pizza", "pasta", "pan", "egg",
+  "pollo", "carne", "fish", "marisco", "veggie", 
+  "verdura", "rice", "soup", "pizza", "pasta", 
+  
+  // Complementos
+  "pan", "egg", "salsas", "snack",
   
   // Dulces y Postres
   "cake", "dulces", "ice-cream", "cookie", "fruta",
   
-  // Desayuno y Bebida
-  "coffee", "leche", "cerveza", "wine", "croissant"
+  // Bebida y Desayuno
+  "coffee", "leche", "cerveza", "wine", "copas", "croissant"
 ];
 
 /**

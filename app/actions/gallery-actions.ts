@@ -218,3 +218,21 @@ export async function getRecipesByAlbumIdAction(albumId: number) {
     return { success: false, data: [], error: error.message };
   }
 }
+
+// Mover receta a otro álbum
+export async function moveRecipeAction(recipeId: number, newAlbumId: number) {
+  try {
+    const { error } = await supabase
+      .from('recetas')
+      .update({ album_id: newAlbumId }) // Cambiamos el ID del álbum
+      .eq('id', recipeId);
+
+    if (error) throw error;
+
+    revalidatePath('/'); // Actualiza la pantalla 
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al mover receta:', error);
+    return { success: false, error: error.message };
+  }
+}
